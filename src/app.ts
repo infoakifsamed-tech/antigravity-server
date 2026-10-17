@@ -16,7 +16,7 @@ export function createApp() {
   app.use(helmet({ crossOriginResourcePolicy: false }));
   app.use(
     cors({
-      origin: env.NODE_ENV === "production" ? env.corsOrigins : true,
+      origin: (_origin, callback) => callback(null, true),
       credentials: true,
     })
   );
