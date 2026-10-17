@@ -47,7 +47,7 @@ const deleteForMeSchema = z.object({
 export function createSocketServer(httpServer: HttpServer): Server {
   const io = new Server(httpServer, {
     cors: {
-      origin: env.NODE_ENV === "production" ? env.corsOrigins : true,
+      origin: (_origin, callback) => callback(null, true),
       credentials: true,
     },
     pingInterval: 10_000,
