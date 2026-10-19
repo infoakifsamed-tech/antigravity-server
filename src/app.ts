@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
+import fs from "fs";
 import path from "path";
 import { env } from "./config/env";
 import { errorHandler, notFound } from "./middleware/errorHandler";
@@ -22,9 +23,19 @@ export function createApp() {
   );
   app.use(express.json({ limit: "8mb" }));
 
-  const apkFile = path.resolve(__dirname, "../../mobile/Antigravity.apk");
-  app.get(["/apk", "/Antigravity.apk"], (_req, res) => {
-    res.download(apkFile, "Antigravity.apk");
+  app.get(["/apk", "/download", "/Antigravity.apk", "/Antigravity_Online.apk"], (_req, res) => {
+    const candidates = [
+      path.resolve(__dirname, "../public/Antigravity.apk"),
+      path.resolve(process.cwd(), "public/Antigravity.apk"),
+      path.resolve(__dirname, "../../public/Antigravity.apk"),
+      path.resolve(process.cwd(), "apps/server/public/Antigravity.apk"),
+      "C:\\AndroidMini\\Antigravity_Online.apk",
+    ];
+    const found = candidates.find((p) => fs.existsSync(p));
+    if (found) {
+      return res.download(found, "Antigravity_Online.apk");
+    }
+    res.status(404).send("APK dosyası hazırlanıyor, lütfen 1 dakika sonra tekrar deneyin.");
   });
 
   app.use("/api", healthRouter);
