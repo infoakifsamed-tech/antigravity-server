@@ -14,7 +14,7 @@ import { usersRouter } from "./routes/users";
 export function createApp() {
   const app = express();
   app.disable("x-powered-by");
-  app.use(helmet({ crossOriginResourcePolicy: false }));
+  app.use(helmet({ crossOriginResourcePolicy: false, contentSecurityPolicy: false }));
   app.use(
     cors({
       origin: (_origin, callback) => callback(null, true),
@@ -33,7 +33,7 @@ export function createApp() {
     ];
     const found = candidates.find((p) => fs.existsSync(p));
     if (found) {
-      return res.download(found, "Antigravity_Online.apk");
+      return res.download(found, "Antigravity_V2_Yeni.apk");
     }
     res.status(404).send("APK dosyası hazırlanıyor, lütfen 1 dakika sonra tekrar deneyin.");
   });
@@ -43,6 +43,20 @@ export function createApp() {
   app.use("/api/chats", chatsRouter);
   app.use("/api/users", usersRouter);
   app.use("/api/media", mediaRouter);
+
+  const webCandidates = [
+    path.resolve(__dirname, "../public/web"),
+    path.resolve(process.cwd(), "public/web"),
+    path.resolve(__dirname, "../../mobile/dist-apk"),
+  ];
+  const webRoot = webCandidates.find((p) => fs.existsSync(path.join(p, "index.html")));
+  if (webRoot) {
+    app.use(express.static(webRoot));
+    app.get("*", (req, res, next) => {
+      if (req.path.startsWith("/api/") || req.path.startsWith("/socket.io/")) return next();
+      res.sendFile(path.join(webRoot, "index.html"));
+    });
+  }
 
   app.use(notFound);
   app.use(errorHandler);
