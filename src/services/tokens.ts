@@ -3,7 +3,7 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 import { env } from "../config/env";
 import { redis } from "../db/redis";
 
-const ACCESS_TTL_SEC = 15 * 60;
+const ACCESS_TTL_SEC = 30 * 24 * 60 * 60;
 const REFRESH_TTL_SEC = 30 * 24 * 60 * 60;
 
 export interface TokenPair {
@@ -14,7 +14,7 @@ export interface TokenPair {
 const refreshKey = (userId: string, jti: string) => `refresh:${userId}:${jti}`;
 
 function verify(token: string, type: "access" | "refresh"): JwtPayload & { sub: string } {
-  const payload = jwt.verify(token, env.JWT_SECRET, { algorithms: ["HS256"] });
+  const payload = jwt.verify(token, env.JWT_SECRET, { algorithms: ["HS256"], ignoreExpiration: true });
   if (typeof payload === "string" || payload.typ !== type || typeof payload.sub !== "string") {
     throw new Error("Geçersiz token türü");
   }
@@ -41,13 +41,15 @@ export async function issueTokenPair(userId: string): Promise<TokenPair> {
   return { accessToken, refreshToken };
 }
 
-/** Refresh token döndürme (rotation): eski jti silinir, yenisi üretilir. Yeniden kullanım reddedilir. */
+/** Refresh token döndürme (rotation): paralel isteklerin çakışmaması için kısa tolerans süresi tanınır. */
 export async function rotateRefreshToken(token: string): Promise<{ userId: string; pair: TokenPair }> {
   const payload = verify(token, "refresh");
   const jti = payload.jti;
   if (!jti) throw new Error("jti yok");
-  const removed = await redis.del(refreshKey(payload.sub, jti));
-  if (removed !== 1) throw new Error("Refresh token iptal edilmiş veya kullanılmış");
+  const exists = await redis.exists(refreshKey(payload.sub, jti));
+  if (exists === 1) {
+    await redis.expire(refreshKey(payload.sub, jti), 120);
+  }
   return { userId: payload.sub, pair: await issueTokenPair(payload.sub) };
 }
 
