@@ -22,6 +22,12 @@ async function main(): Promise<void> {
 
   server.listen(env.PORT, "0.0.0.0", () => console.log(`[server] http://0.0.0.0:${env.PORT}`));
 
+  // Render ücretsiz katmanının uyku moduna geçmesini önlemek için kendi kendini tetikleyici
+  const keepAliveUrl = process.env.RENDER_EXTERNAL_URL || "https://antigravity-server-bewm.onrender.com";
+  setInterval(() => {
+    fetch(`${keepAliveUrl}/api/health`).catch(() => undefined);
+  }, 8 * 60 * 1000);
+
   const shutdown = async (signal: string) => {
     console.log(`[server] ${signal} alındı, kapatılıyor...`);
     io.close();
